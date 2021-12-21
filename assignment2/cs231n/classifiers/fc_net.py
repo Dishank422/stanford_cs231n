@@ -1,6 +1,7 @@
 from builtins import range
 from builtins import object
 import numpy as np
+from scipy.stats import norm
 
 from ..layers import *
 from ..layer_utils import *
@@ -51,7 +52,7 @@ class FullyConnectedNet(object):
             this datatype. float32 is faster but less accurate, so you should use
             float64 for numeric gradient checking.
         - seed: If not None, then pass this random seed to the dropout layers.
-            This will make the dropout layers deteriminstic so we can gradient check the model.
+            This will make the dropout layers deterministic so we can gradient check the model.
         """
         self.normalization = normalization
         self.use_dropout = dropout_keep_ratio != 1
@@ -73,8 +74,13 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        self.dims = [input_dim] + hidden_dims + [num_classes]
+        s1 = "W"
+        s2 = "b"
+        for i in range(len(self.dims)-1):
+            self.params[s1+str(i+1)] = norm.rvs(scale=weight_scale, size=self.dims[i]*self.dims[i+1]).reshape(self.dims[i], self.dims[i+1])
+            self.params[s2+str(i+1)] = np.zeros(self.dims[i+1])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -148,7 +154,18 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        hid_inp = [X]
+        s1 = "W"
+        s2 = "b"
+        k = 0
+        for i in range(len(self.dims)-2):
+            tmp1, tmp2 = affine_forward(hid_inp[i], self.params[s1+str(i+1)], self.params[s2+str(i+1)])
+            tmp1, tmp2 = relu_forward(tmp1)
+            hid_inp.append(tmp1)
+            k = i+1
+        tmp1, tmp2 = affine_forward(hid_inp[k], self.params[s1+str(k+1)], self.params[s2+str(k+1)])
+        hid_inp.append(tmp1)
+        scores = hid_inp[-1]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -175,7 +192,12 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dout_tmp = softmax_loss(hid_inp[-1], y)
+        for i in range(len(self.dims)-1, 0, -1):
+            dhid_inp, grads[s1+str(i)], grads[s2+str(i)] = affine_backward(dout_tmp, (hid_inp[i-1], self.params[s1+str(i)], self.params[s2+str(i)]))
+            grads[s1+str(i)] += self.reg*self.params[s1+str(i)]
+            dout_tmp = relu_backward(dhid_inp, hid_inp[i-1])
+            loss += 0.5*self.reg*np.sum(self.params[s1+str(i)]**2)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
