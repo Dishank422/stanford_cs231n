@@ -185,7 +185,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     Input:
     - x: Data of shape (N, D)
     - gamma: Scale parameter of shape (D,)
-    - beta: Shift paremeter of shape (D,)
+    - beta: Shift parameter of shape (D,)
     - bn_param: Dictionary with the following keys:
       - mode: 'train' or 'test'; required
       - eps: Constant for numeric stability
@@ -230,7 +230,15 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mean = np.mean(x, axis=0)
+        std = (np.var(x, axis=0) + eps)**0.5
+        x_norm = x - mean
+        x_norm = x_norm / std
+        out = x_norm * gamma
+        out = out + beta
+        running_mean = momentum * running_mean + (1 - momentum) * mean
+        running_var = momentum * running_var + (1 - momentum) * std**2
+        cache = (gamma, beta, x_norm, mean, std, x)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -245,7 +253,10 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x -= running_mean
+        x /= (running_var + eps)**0.5
+        x *= gamma
+        out = x + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -286,7 +297,25 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, D = dout.shape
+    gamma, beta, x_norm, mean, std, x = cache
+    dx_norm = dout*gamma
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout*x_norm, axis=0)
+
+    dxmu1 = dx_norm/std
+    dsample_var = np.sum(dx_norm*(x-mean), axis=0)*(-0.5)*std**(-3)
+
+    dsq = (1/N)*np.ones((N, D))*dsample_var
+    dxmu2 = 2*(x-mean)*dsq
+
+    dx1 = dxmu1 + dxmu2
+
+    dxmu = -1*np.sum(dxmu1+dxmu2, axis=0)
+
+    dx2 = 1/N * np.ones((N, D)) * dxmu
+
+    dx = dx1 + dx2
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################

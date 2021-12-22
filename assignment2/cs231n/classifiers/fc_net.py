@@ -78,9 +78,19 @@ class FullyConnectedNet(object):
         self.dims = [input_dim] + hidden_dims + [num_classes]
         s1 = "W"
         s2 = "b"
-        for i in range(len(self.dims)-1):
+        s3 = "gamma"
+        s4 = "beta"
+        p = 0
+        for i in range(len(self.dims)-2):
             self.params[s1+str(i+1)] = norm.rvs(scale=weight_scale, size=self.dims[i]*self.dims[i+1]).reshape(self.dims[i], self.dims[i+1])
             self.params[s2+str(i+1)] = np.zeros(self.dims[i+1])
+            if self.normalization == "batchnorm":
+                self.params[s3+str(i+1)] = np.ones_like(self.params[s2+str(i+1)])
+                self.params[s4+str(i+1)] = np.zeros_like(self.params[s2+str(i+1)])
+            p = i+1
+        i = p
+        self.params[s1+str(i+1)] = norm.rvs(scale=weight_scale, size=self.dims[i]*self.dims[i+1]).reshape(self.dims[i], self.dims[i+1])
+        self.params[s2+str(i+1)] = np.zeros(self.dims[i+1])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -153,13 +163,18 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
         hid_inp = [X]
         s1 = "W"
         s2 = "b"
+        s3 = "gamma"
+        s4 = "beta"
+        caches = []
         k = 0
         for i in range(len(self.dims)-2):
             tmp1, tmp2 = affine_forward(hid_inp[i], self.params[s1+str(i+1)], self.params[s2+str(i+1)])
+            if self.normalization == "batchnorm":
+                tmp1, cache = batchnorm_forward(tmp1, self.params[s3+(str(i+1))], self.params[s4+str(i+1)], self.bn_params[i])
+                caches.append(cache)
             tmp1, tmp2 = relu_forward(tmp1)
             hid_inp.append(tmp1)
             k = i+1
@@ -192,12 +207,18 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        loss, dout_tmp = softmax_loss(hid_inp[-1], y)
-        for i in range(len(self.dims)-1, 0, -1):
+        loss, dout_tmp = softmax_loss(scores, y)
+        i = len(self.dims)-1
+        dhid_inp, grads[s1+str(i)], grads[s2+str(i)] = affine_backward(dout_tmp, (hid_inp[i-1], self.params[s1+str(i)], self.params[s2+str(i)]))
+        grads[s1+str(i)] += self.reg*self.params[s1+str(i)]
+        loss += 0.5*self.reg*np.sum(self.params[s1+str(i)]**2)
+        for i in range(len(self.dims)-2, 0, -1):
+            dout_tmp = relu_backward(dhid_inp, hid_inp[i])
+            loss += 0.5*self.reg*np.sum(self.params[s1+str(i)]**2)
+            if self.normalization == "batchnorm":
+                dout_tmp, grads[s3+str(i)], grads[s4+str(i)] = batchnorm_backward(dout_tmp, caches[i-1])
             dhid_inp, grads[s1+str(i)], grads[s2+str(i)] = affine_backward(dout_tmp, (hid_inp[i-1], self.params[s1+str(i)], self.params[s2+str(i)]))
             grads[s1+str(i)] += self.reg*self.params[s1+str(i)]
-            dout_tmp = relu_backward(dhid_inp, hid_inp[i-1])
-            loss += 0.5*self.reg*np.sum(self.params[s1+str(i)]**2)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
