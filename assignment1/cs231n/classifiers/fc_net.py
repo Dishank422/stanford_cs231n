@@ -92,7 +92,7 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        hid, tmp1 = affine_forward(X ,self.params['W1'], self.params['b1']) 
+        hid, tmp1 = affine_forward(X, self.params['W1'], self.params['b1'])
         hid, tmp1 = relu_forward(hid)
         scores, tmp2 = affine_forward(hid, self.params['W2'], self.params['b2'])
         
