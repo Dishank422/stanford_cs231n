@@ -109,7 +109,7 @@ class CaptioningRNN:
         # hidden state
         W_proj, b_proj = self.params["W_proj"], self.params["b_proj"]
 
-        # Word embedding matrix
+        # Word embedding matrixpass
         W_embed = self.params["W_embed"]
 
         # Input-to-hidden, hidden-to-hidden, and biases for the RNN
@@ -148,7 +148,15 @@ class CaptioningRNN:
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h0, cache_affine = affine_forward(features, W_proj, b_proj)
+        word_vecs_in, cache_word_vecs = word_embedding_forward(captions_in, W_embed)
+        h, cache_rnn = rnn_forward(word_vecs_in, h0, Wx, Wh, b)
+        scores, cache_temporal = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dout_softmax = temporal_softmax_loss(scores, captions_out, mask)
+        dtemporal, grads["W_vocab"], grads["b_vocab"] = temporal_affine_backward(dout_softmax, cache_temporal)
+        drnn, dh0, grads["Wx"], grads["Wh"], grads["b"] = rnn_backward(dtemporal, cache_rnn)
+        grads["W_embed"] = word_embedding_backward(drnn, cache_word_vecs)
+        _, grads["W_proj"], grads["b_proj"] = affine_backward(dh0, cache_affine)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -216,7 +224,16 @@ class CaptioningRNN:
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        prev_h, _ = affine_forward(features, W_proj, b_proj)
+        captions = np.zeros((N, max_length), dtype=int)
+        captions[:, 0] = self._start
+
+        for i in range(max_length-1):
+            prev_word_embed, _ = word_embedding_forward(captions[:, i], W_embed)
+            next_h, _ = rnn_step_forward(prev_word_embed, prev_h, Wx, Wh, b)
+            scores, _ = affine_forward(next_h, W_vocab, b_vocab)
+            captions[:, i+1] = np.argmax(scores, axis=1)
+            prev_h = next_h
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
