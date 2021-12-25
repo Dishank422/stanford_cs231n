@@ -7,6 +7,7 @@ import math
 This file defines layer types that are commonly used for transformers.
 """
 
+
 class PositionalEncoding(nn.Module):
     """
     Encodes information about the positions of the tokens in the sequence. In
@@ -126,7 +127,16 @@ class MultiHeadAttention(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        nn.init.xavier_uniform_(self.key.weight)
+        nn.init.xavier_uniform_(self.query.weight)
+        nn.init.xavier_uniform_(self.value.weight)
+        nn.init.xavier_uniform_(self.proj.weight)
+        self.key.bias.data.fill_(0)
+        self.value.bias.data.fill_(0)
+        self.query.bias.data.fill_(0)
+        self.proj.bias.data.fill_(0)
+        self.drop = dropout
+        self.num_heads = num_heads
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -174,7 +184,23 @@ class MultiHeadAttention(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        query = self.query(query)
+        value = self.value(value)
+        key = self.key(key)
+
+        query = torch.reshape(query, (N, S, self.num_heads, -1)).permute(0, 2, 1, 3)
+        value = torch.reshape(value, (N, T, self.num_heads, -1)).permute(0, 2, 1, 3)
+        key = torch.reshape(key, (N, T, self.num_heads, -1)).permute(0, 2, 1, 3)
+
+        attn_logits = torch.matmul(query, key.transpose(-2, -1))
+        attn_logits = attn_logits / (D/self.num_heads)**0.5
+        if attn_mask is not None:
+            attn_logits = attn_logits.masked_fill(attn_mask == 0, -9e15)
+        attention = F.softmax(attn_logits, dim=-1)
+        attention = F.dropout(attention, self.drop)
+        output = torch.matmul(attention, value).permute(0, 2, 1, 3).reshape(N, T, D)
+        output = self.proj(output)
+        print(output)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
